@@ -248,6 +248,7 @@
 #include <dirent.h>
 #include <arpa/inet.h>
 #include <sys/time.h>
+// https://jansson.readthedocs.org/en/2.2/apiref.html
 #include <jansson.h>
 
 #include "../debug.h"
@@ -1012,6 +1013,29 @@ void janus_recordplay_incoming_rtcp(janus_plugin_session *handle, int video, cha
             ntohl(sr->si.ntp_ts_lsw),
             ntohl(sr->si.rtp_ts)
         );
+
+        json_t *rtcp_info = json_object();
+        json_object_set_new(rtcp_info, "ntp_ts_msw", json_integer( ntohl( sr->si.ntp_ts_msw ) ) );
+        json_object_set_new(rtcp_info, "ntp_ts_lsw", json_integer( ntohl( sr->si.ntp_ts_lsw ) ) );
+        json_object_set_new(rtcp_info, "rtp_ts", json_integer( ntohl( sr->si.rtp_ts) ) );
+        char *json_str = json_dumps(rtcp_info,JSON_INDENT(3) | JSON_PRESERVE_ORDER );
+        json_decref(rtcp_info);
+        rtcp_info = NULL;
+        janus_recordplay_session *jrs = handle->plugin_handle;
+        fwrite(json_str, strlen(json_str), sizeof(char), jrs->rtcp_data_fh);
+        g_free(json_str);
+
+         
+//            g_snprintf(nfo, 1024,
+//                "[%"SCNu64"]\r\n"
+//                "name = %s\r\n"
+//                "date = %s\r\n"
+//                "video = %s.mjr\r\n",
+//                    session->recording->id, session->recording->name, session->recording->date,
+//                    session->recording->vrc_file);
+//					}
+//					/* Write to the file now */
+//					fwrite(nfo, strlen(nfo), sizeof(char), file);
     }
 	if(handle == NULL || handle->stopped || g_atomic_int_get(&stopping) || !g_atomic_int_get(&initialized))
 		return;
