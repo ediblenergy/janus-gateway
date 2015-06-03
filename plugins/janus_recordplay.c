@@ -998,6 +998,7 @@ void janus_recordplay_incoming_rtp(janus_plugin_session *handle, int video, char
 }
 
 void janus_recordplay_incoming_rtcp(janus_plugin_session *handle, int video, char *buf, int len) {
+    JANUS_LOG(LOG_VERB,"got an RTCP packet, calling janus_rtcp_parse:\t %d\n",janus_rtcp_parse(buf,len));
 	if(handle == NULL || handle->stopped || g_atomic_int_get(&stopping) || !g_atomic_int_get(&initialized))
 		return;
 }
