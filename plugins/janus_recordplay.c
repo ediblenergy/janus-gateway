@@ -381,6 +381,7 @@ typedef struct janus_recordplay_session {
 	guint64 video_keyframe_request_last; /* timestamp of last keyframe request sent */
 	gint video_fir_seq;
 	guint64 destroyed;	/* Time at which this session was marked as destroyed */
+    FILE *rtcp_data_fh;
 } janus_recordplay_session;
 static GHashTable *sessions;
 static GList *old_sessions;
@@ -998,7 +999,20 @@ void janus_recordplay_incoming_rtp(janus_plugin_session *handle, int video, char
 }
 
 void janus_recordplay_incoming_rtcp(janus_plugin_session *handle, int video, char *buf, int len) {
-    JANUS_LOG(LOG_VERB,"got an RTCP packet, calling janus_rtcp_parse:\t %d\n",janus_rtcp_parse(buf,len));
+    janus_rtcp_parse(buf,len);
+	rtcp_header *rtcp = (rtcp_header *)buf;
+    if( rtcp->type == RTCP_SR) {
+        JANUS_LOG(LOG_VERB,"RTCP packet type:\t %d\n",rtcp->type);
+        rtcp_sr *sr = (rtcp_sr*)rtcp;
+        JANUS_LOG(LOG_VERB,
+            "from recordplay:\n[sender_info_v3.1] ntp_ts_msw:%" SCNu32
+            " ntp_ts_lsw:%" SCNu32
+            " rtp_ts:%" SCNu32 "\n",
+            ntohl(sr->si.ntp_ts_msw),
+            ntohl(sr->si.ntp_ts_lsw),
+            ntohl(sr->si.rtp_ts)
+        );
+    }
 	if(handle == NULL || handle->stopped || g_atomic_int_get(&stopping) || !g_atomic_int_get(&initialized))
 		return;
 }
@@ -1243,6 +1257,11 @@ static void *janus_recordplay_handler(void *data) {
 			result = json_object();
 			json_object_set_new(result, "status", json_string("recording"));
 			json_object_set_new(result, "id", json_integer(id));
+
+            char rtcp_file[1024];
+            g_snprintf(rtcp_file, 1024, "%s/%"SCNu64"-rtcp.json", recordings_path, session->recording->id);
+            session->rtcp_data_fh = fopen(rtcp_file, "wt");
+
 		} else if(!strcasecmp(request_text, "play")) {
 			if(msg->sdp) {
 				JANUS_LOG(LOG_ERR, "A play request can't contain an SDP\n");
@@ -1346,6 +1365,7 @@ static void *janus_recordplay_handler(void *data) {
 			}
 			/* Done! */
 			result = json_object();
+            //create rtcp data file
 			json_object_set_new(result, "status", json_string("playing"));
 		} else if(!strcasecmp(request_text, "stop")) {
 			/* Stop the recording/playout */
@@ -1364,6 +1384,7 @@ static void *janus_recordplay_handler(void *data) {
 			session->vrc = NULL;
 			if(session->recorder) {
 				/* Create a .nfo file for this recording */
+                fclose( session->rtcp_data_fh );
 				char nfofile[1024], nfo[1024];
 				g_snprintf(nfofile, 1024, "%s/%"SCNu64".nfo", recordings_path, session->recording->id);
 				FILE *file = fopen(nfofile, "wt");

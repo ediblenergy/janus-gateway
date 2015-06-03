@@ -85,7 +85,7 @@ int janus_rtcp_fix_ssrc(char *packet, int len, int fixssrc, uint32_t newssrcl, u
 				JANUS_LOG(LOG_HUGE, "     #%d SR (200)\n", pno);
 				rtcp_sr *sr = (rtcp_sr*)rtcp;
                 JANUS_LOG(LOG_VERB,
-                    "[sender_info_v3.1] ntp_ts_msw:%" SCNu32
+                    "from rtcp.c:\n [sender_info_v3.1] ntp_ts_msw:%" SCNu32
                     " ntp_ts_lsw:%" SCNu32
                     " rtp_ts:%" SCNu32 "\n",
                     ntohl(sr->si.ntp_ts_msw),
